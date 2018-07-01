@@ -17,18 +17,22 @@
                 <a class="active item" href="./balance.html">See your balance</a>
             </div>
         </div>
-        <div class="twelve wide column">
+        <div class="ten wide column">
             <h2 class="ui black header">See balance</h2>
             <div id="balanceForm">
                 <form class="ui form">
-                    <div>
-                        <label>contract address</label>
+                    <div class="field">
+                        <label>token contract address</label>
                         <input name="contract-address" type="text">
                     </div>
                     <div class="ui button" id="balance-btn" name="submit">Submit</div>
                 </form>
-                <div id="balance"/>
+                <div id="approvedBalance" style="margin-top:10px;"></div>
+                <div id="holdingBalance" style="margin-top:10px;"></div>
             </div>
+            <div id="approveForm" style="margin-top:10px;"></div>
+            <div id="txStatus" style="margin-top:10px;"></div>
+            <div id="error" style="margin-top:10px;"></div>
         </div>
     </div>
 </body>
