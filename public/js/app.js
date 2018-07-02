@@ -2,11 +2,10 @@ const BigNumber = require("bignumber.js");
 
 const batchTransferWalletAbi =  [{"constant":true,"inputs":[{"name":"_token","type":"address"}],"name":"allowanceForContract","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_token","type":"address"},{"name":"_receivers","type":"address[]"},{"name":"_tokenAmounts","type":"uint256[]"}],"name":"batchTransferToken","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_token","type":"address"}],"name":"balanceOfContract","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_receivers","type":"address[]"},{"name":"_amounts","type":"uint256[]"}],"name":"batchTransferEther","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_receiver","type":"address"},{"name":"_token","type":"address"}],"name":"withdraw","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"receiver","type":"address"},{"indexed":true,"name":"token","type":"address"},{"indexed":false,"name":"amount","type":"uint256"}],"name":"Withdraw","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"sender","type":"address"},{"indexed":true,"name":"receiver","type":"address"},{"indexed":false,"name":"amount","type":"uint256"}],"name":"TransferEther","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"}];
 const tokenABI = [{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transferFrom","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"INITIAL_SUPPLY","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint32"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_subtractedValue","type":"uint256"}],"name":"decreaseApproval","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_addedValue","type":"uint256"}],"name":"increaseApproval","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"inputs":[],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"name":"owner","type":"address"},{"indexed":true,"name":"spender","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Transfer","type":"event"}];
-const batchTransferWalletAddress = "0x6e82AaBffe24f275Ad3f703ACA922DD4d8f86168";
 
 App = {
     batchTransferWalletContract: {
-        instance: null
+        address: null
     },
     tokenContract: {
         instance: null,
@@ -36,7 +35,19 @@ App = {
     },
 
     initContract: () => {
-        App.batchTransferWalletContract.instance = web3.eth.contract(batchTransferWalletAbi).at(batchTransferWalletAddress);
+        web3.version.getNetwork((err, netId) => {
+            switch (netId) {
+                case "1":
+                    App.batchTransferWalletContract.address = "0x6e82AaBffe24f275Ad3f703ACA922DD4d8f86168";
+                    break;
+                case "4":
+                    App.batchTransferWalletContract.address = "0xc48f1e682be2009af01a0a08a7f5149f9492d57b";
+                    break;
+                default:
+                    createErrorElement("You cannot use this network. Please use mainnet or rinkeby netowork.");
+            }
+        });
+
         App.bindEvents();
     },
 
@@ -49,8 +60,8 @@ App = {
     },
 
     csvImport : async () => {
-        clearElement();        
- 
+        clearElement();
+
         if (!App.csvFile.instance) {
             createErrorElement("csv file is invalid.");
             return;
@@ -102,33 +113,33 @@ App = {
                 $(`#table-tr${i}`).append(`<td>${App.csvFile.addresses[i]}</td>`);
             }
 
-            if (!isFinite(App.csvFile.amounts[i]) || App.csvFile.amounts[i] <= 0) {
+            if (!isFinite(App.csvFile.amounts[i]) || App.csvFile.amounts[i] <= 0 || invalidDecimals(App.csvFile.amounts[i])) {
                 $(`#table-tr${i}`).append(`<td class="negative">${App.csvFile.amounts[i]}</td>`);
                 validAllData = false;
             } else {
-                $(`#table-tr${i}`).append(`<td>${adjustAmount(App.csvFile.amounts[i])}</td>`);
+                $(`#table-tr${i}`).append(`<td>${new BigNumber(App.csvFile.amounts[i])} ${App.tokenContract.symbol}</td>`);
                 totalAmount = totalAmount.plus(App.csvFile.amounts[i]);
-            }                
+            }
         }
 
         if (!validAllData) {
             createErrorElement("There are more than one invalid address or amount. Please check data in red background.");
         } else {
             $("#send").append($('<div class="ui button" id="send-btn" name="submit" style="margin-top:10px;">Send</div>'));
-        }   
+        }
 
         refleshTotalAmount(totalAmount);
 
-        $("#importForm input[name='csv']").val('');     
+        $("#importForm input[name='csv']").val('');
     },
 
     transfer : async () => {
         clearStatusAndError();
 
-        const approveBalance = $("#approvedBalance").val() * (10 ** App.tokenContract.decimals);
-        const totalAmount = $("#totalAmount").val() * (10 ** App.tokenContract.decimals);
-        const holdingBalance = $("#holdingBalance").val() * (10 ** App.tokenContract.decimals);
-        
+        const approveBalance = new BigNumber($("#approvedBalance").val()) * (10 ** App.tokenContract.decimals);
+        const totalAmount = new BigNumber($("#totalAmount").val()) * (10 ** App.tokenContract.decimals);
+        const holdingBalance = new BigNumber($("#holdingBalance").val()) * (10 ** App.tokenContract.decimals);
+
         if (totalAmount > approveBalance) {
             createErrorElement("totalAmount is larger than approveBalance.");
             return;
@@ -137,8 +148,10 @@ App = {
             return;
         }
 
-        const asyncBatchTransfer = promisify(cb => App.batchTransferWalletContract.instance.batchTransferToken(App.tokenContract.instance.address, App.csvFile.addresses, App.csvFile.amounts, cb));
-        
+        const batchTransferWalletContractInstance = web3.eth.contract(batchTransferWalletAbi).at(App.batchTransferWalletContract.address);
+        const amounts = createTransferAmounts(App.csvFile.amounts);
+        const asyncBatchTransfer = promisify(cb => batchTransferWalletContractInstance.batchTransferToken(App.tokenContract.instance.address, App.csvFile.addresses, amounts, cb));
+
         try {
             const txHash = await asyncBatchTransfer;
             createTransactionStatus(txHash);
@@ -183,8 +196,7 @@ App = {
             return;
         }
 
-        const tokenAmountDecimals = tokenAmountString.split(".")[1];
-        if (typeof tokenAmountDecimals !== "undefined" && tokenAmountDecimals.length > App.tokenContract.decimals) {
+        if (invalidDecimals(tokenAmountString)) {
             createErrorElement("You can't use the decimals longer than the one defined in token contract");
             return;
         }
@@ -193,7 +205,7 @@ App = {
         const tokenAmountBigNumber = new BigNumber(tokenAmountString);
         const calcTokenAmount = tokenAmountBigNumber.mul(decimalValue);
 
-        const asyncApprove = promisify(cb => App.tokenContract.instance.approve(App.batchTransferWalletContract.instance.address, calcTokenAmount.toNumber(), {from:App.userAccount}, cb));
+        const asyncApprove = promisify(cb => App.tokenContract.instance.approve(App.batchTransferWalletContract.address, calcTokenAmount.toNumber(), {from:App.userAccount}, cb));
 
         try {
             const txHash = await asyncApprove;
@@ -247,7 +259,20 @@ const clearElement = () => {
 const clearStatusAndError = () => {
     $("#txStatus").empty();
     $("#error").empty();
-} 
+}
+
+const createTransferAmounts = (amounts) => {
+    let returnAmounts = [];
+    for (let i = 0; i < amounts.length; i++) {
+        returnAmounts[i] = new BigNumber(amounts[i]).mul(10 ** App.tokenContract.decimals);
+    }
+    return returnAmounts;
+}
+
+const invalidDecimals = (tokenAmount) => {
+    const length = (tokenAmount + '.').match(/\.\d*/)[0].length - 1;
+    return length > App.tokenContract.decimals;
+}
 
 const setSymbolAndDecimals = async () => {
     const asyncSymbol = promisify(cb => App.tokenContract.instance.symbol.call(cb));
@@ -260,12 +285,12 @@ const setSymbolAndDecimals = async () => {
 const refleshTotalAmount = (amount) => {
     $("#totalAmount").empty();
     // To be used for checking before transfer
-    $("#totalAmount").val(amount.div(10 ** App.tokenContract.decimals));
-    $("#totalAmount").append(addReadOnlyField("Total amount of sending token", `${amount.div(10 ** App.tokenContract.decimals)} ${App.tokenContract.symbol}`));
+    $("#totalAmount").val(amount);
+    $("#totalAmount").append(addReadOnlyField("Total amount of sending token", `${amount} ${App.tokenContract.symbol}`));
 }
 
 const refleshBalanceAndAllowance = async () => {
-    const asyncAllowance = promisify(cb => App.tokenContract.instance.allowance.call(App.userAccount, App.batchTransferWalletContract.instance.address, cb))
+    const asyncAllowance = promisify(cb => App.tokenContract.instance.allowance.call(App.userAccount, App.batchTransferWalletContract.address, cb))
     const allowance = new BigNumber(await asyncAllowance);
     $("#approvedBalance").empty();
     // To be used for checking before transfer
@@ -304,11 +329,6 @@ const createErrorElement = (outputMsg) => {
 const checkTokenAmount = (value) => {
     const pettern = /^([1-9]\d*|0)(\.\d+)?$/;
     return pettern.test(value);
-}
-
-const adjustAmount = (amount) => {
-    amount = new BigNumber(amount);
-    return `${amount.div(10 ** App.tokenContract.decimals)} ${App.tokenContract.symbol}`;
 }
 
 const isAddress = (address) => {
