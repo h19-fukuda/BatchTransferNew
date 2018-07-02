@@ -9,11 +9,12 @@
   "scripts": {
     "dev": "lite-server"
   },
-
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "openzeppelin-solidity": "1.9.0"
+    "bignumber.js": "^7.2.1",
+    "openzeppelin-solidity": "1.9.0",
+    "express": "~3.3.4"
   }
 }
