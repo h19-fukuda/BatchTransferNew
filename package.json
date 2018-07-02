@@ -7,13 +7,14 @@
     "test": "test"
   },
   "scripts": {
-    "dev": "lite-server",
+    "dev": "lite-server"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "bignumber.js": "^7.2.1",
-    "openzeppelin-solidity": "1.9.0"
+    "openzeppelin-solidity": "1.9.0",
+    "express": "~3.3.4"
   }
 }
