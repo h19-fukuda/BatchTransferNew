@@ -52,34 +52,33 @@ App = {
     },
 
     bindEvents: () => {
-        $(document).on('click', '#csv-import-btn', App.csvImport);
+        $(document).on('click', '#csv-import-token-btn', App.csvImportForToken);
+        $(document).on('click', '#csv-import-ether-btn', App.csvImportForEther);
         $(document).on('click', '#balance-btn', App.balance);
         $(document).on('click', '#approve-btn', App.approve);
         $(document).on('click', '#send-btn', App.transfer);
         $(document).on('change',"#importForm input[name='csv']", App.fileUpload);
     },
 
-    csvImport : async () => {
+    csvImportForToken : async () => {
         clearElement();
+        const tokenContractAddress = $("#importForm input[name='contract-address']")[0].value;
 
+        // error check
         if (!App.csvFile.instance) {
             createErrorElement("csv file is invalid.");
             return;
-        }
-
-        const contractAddress = $("#importForm input[name='contract-address']")[0].value;
-        if (!isAddress(contractAddress)) {
-            createErrorElement(`contract address "${contractAddress}" is not ethereum address`);
+        } else if (!isAddress(tokenContractAddress)) {
+            createErrorElement(`contract address "${tokenContractAddress}" is not ethereum address`);
             return;
         }
 
-        const tokenContractAddress = $("#importForm input[name='contract-address']")[0].value;
+        // reflesh token infomation
         App.tokenContract.instance = web3.eth.contract(tokenABI).at(tokenContractAddress);
         await setSymbolAndDecimals();
-
         await refleshBalanceAndAllowance();
 
-        //csv format is "address,amount"
+        // csv format is "address,amount"
         App.csvFile.addresses = App.csvFile.instance.split("\n").map(function (value) {
             return value.split(",")[0]
         });
@@ -129,6 +128,69 @@ App = {
         }
 
         refleshTotalAmount(totalAmount);
+
+        $("#importForm input[name='csv']").val('');
+    },
+
+    csvImportForEther : async () => {
+        clearElement();
+
+        // error check
+        if (!App.csvFile.instance) {
+            createErrorElement("csv file is invalid.");
+            return;
+        }
+
+        // csv format is "address,amount"
+        App.csvFile.addresses = App.csvFile.instance.split("\n").map(function (value) {
+            return value.split(",")[0]
+        });
+        App.csvFile.amounts = App.csvFile.instance.split("\n").map(function (value) {
+            return value.split(",")[1];
+        });
+
+        $("#table-send").append($("<table class='ui celled table' id='table'>"));
+
+        // thead
+        const nesting = $("<tr>").append("<th class='center aligned'>#</th>","<th>Address</th>","<th>Amount</th>");
+        $("#table").append($("<thead/>").append(nesting));
+
+        let totalAmount = new BigNumber(0);
+        let validAllData = true;
+
+        if (App.csvFile.addresses.length > 100) {
+            createErrorElement("Please set less than or equal to 100 address.");
+            return;
+        }
+
+        // tbody
+        for(let i = 0; App.csvFile.addresses.length > i; i++) {
+
+            $("#table").append($(`<tr id='table-tr${i}'></div>`).append(`<td class='center aligned'>${i+1}</td>`));
+
+            if (!isAddress(App.csvFile.addresses[i])) {
+                $(`#table-tr${i}`).append(`<td class="negative">${App.csvFile.addresses[i]}</td>`);
+                validAllData = false;
+            } else {
+                $(`#table-tr${i}`).append(`<td>${App.csvFile.addresses[i]}</td>`);
+            }
+
+            if (!isFinite(App.csvFile.amounts[i]) || App.csvFile.amounts[i] <= 0 || invalidDecimalsForEther(App.csvFile.amounts[i])) {
+                $(`#table-tr${i}`).append(`<td class="negative">${App.csvFile.amounts[i]}</td>`);
+                validAllData = false;
+            } else {
+                $(`#table-tr${i}`).append(`<td>${new BigNumber(App.csvFile.amounts[i])} ETH</td>`);
+                totalAmount = totalAmount.plus(App.csvFile.amounts[i]);
+            }
+        }
+
+        if (!validAllData) {
+            createErrorElement("There are more than one invalid address or amount. Please check data in red background.");
+        } else {
+            $("#send").append($('<div class="ui button" id="send-btn" name="submit" style="margin-top:10px;">Send</div>'));
+        }
+
+        refleshTotalAmountForEther(totalAmount);
 
         $("#importForm input[name='csv']").val('');
     },
@@ -274,6 +336,11 @@ const invalidDecimals = (tokenAmount) => {
     return length > App.tokenContract.decimals;
 }
 
+const invalidDecimalsForEther = (tokenAmount) => {
+    const length = (tokenAmount + '.').match(/\.\d*/)[0].length - 1;
+    return length > 18;
+}
+
 const setSymbolAndDecimals = async () => {
     const asyncSymbol = promisify(cb => App.tokenContract.instance.symbol.call(cb));
     const asyncDecimals = promisify(cb => App.tokenContract.instance.decimals.call(cb));
@@ -287,6 +354,13 @@ const refleshTotalAmount = (amount) => {
     // To be used for checking before transfer
     $("#totalAmount").val(amount);
     $("#totalAmount").append(addReadOnlyField("Total amount of sending token", `${amount} ${App.tokenContract.symbol}`));
+}
+
+const refleshTotalAmountForEther = (amount) => {
+    $("#totalAmount").empty();
+    // To be used for checking before transfer
+    $("#totalAmount").val(amount);
+    $("#totalAmount").append(addReadOnlyField("Total amount of sending token", `${amount} ETH`));
 }
 
 const refleshBalanceAndAllowance = async () => {
