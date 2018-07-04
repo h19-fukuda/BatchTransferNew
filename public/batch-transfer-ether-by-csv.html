@@ -11,8 +11,11 @@
         <div class="four wide column">
             <div class="ui vertical fluid tabular menu">
                 <a class="item" href="./index.html">Top page</a>
-                <a class="active item" href="./batch-transfer-by-csv.html">
-                    Batch Transfer by csv
+                <a class="item" href="./batch-transfer-token-by-csv.html">
+                    Batch Transfer Token by csv
+                </a>
+                <a class="active item" href="./batch-transfer-ether-by-csv.html">
+                    Batch Transfer Ether by csv
                 </a>
                 <a class="item" href="./balance.html">See your balance</a>
             </div>
@@ -25,12 +28,7 @@
                         <label>csv</label>
                         <input name="csv" type="file" accept="text/csv"/>
                     </div>
-                    <div class="field">
-                        <label>token contract address</label>
-                        <input name="contract-address" type="text">
-                    </div>
-                    <div class="ui button" id="csv-import-btn" name="submit">Check data</div>
-                    <div id="approvedBalance" style="margin-top:10px;"></div>
+                    <div class="ui button" id="csv-import-ether-btn" name="submit">Check data</div>
                     <div id="holdingBalance" style="margin-top:10px;"></div>
                     <div id="totalAmount" style="margin-top:10px;"></div>
                     <div id="table-send" style="margin-top:10px;"></div>
