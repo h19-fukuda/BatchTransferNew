@@ -56,7 +56,8 @@ App = {
         $(document).on('click', '#csv-import-ether-btn', App.csvImportForEther);
         $(document).on('click', '#balance-btn', App.balance);
         $(document).on('click', '#approve-btn', App.approve);
-        $(document).on('click', '#send-btn', App.transfer);
+        $(document).on('click', '#send-token-btn', App.transferToken);
+        $(document).on('click', '#send-ether-btn', App.transferEther);
         $(document).on('change',"#importForm input[name='csv']", App.fileUpload);
     },
 
@@ -124,7 +125,7 @@ App = {
         if (!validAllData) {
             createErrorElement("There are more than one invalid address or amount. Please check data in red background.");
         } else {
-            $("#send").append($('<div class="ui button" id="send-btn" name="submit" style="margin-top:10px;">Send</div>'));
+            $("#send").append($('<div class="ui button" id="send-token-btn" name="submit" style="margin-top:10px;">Send</div>'));
         }
 
         refleshTotalAmount(totalAmount);
@@ -140,6 +141,8 @@ App = {
             createErrorElement("csv file is invalid.");
             return;
         }
+
+        await refleshEtherBalance();
 
         // csv format is "address,amount"
         App.csvFile.addresses = App.csvFile.instance.split("\n").map(function (value) {
@@ -187,7 +190,7 @@ App = {
         if (!validAllData) {
             createErrorElement("There are more than one invalid address or amount. Please check data in red background.");
         } else {
-            $("#send").append($('<div class="ui button" id="send-btn" name="submit" style="margin-top:10px;">Send</div>'));
+            $("#send").append($('<div class="ui button" id="send-ether-btn" name="submit" style="margin-top:10px;">Send</div>'));
         }
 
         refleshTotalAmountForEther(totalAmount);
@@ -195,7 +198,7 @@ App = {
         $("#importForm input[name='csv']").val('');
     },
 
-    transfer : async () => {
+    transferToken : async () => {
         clearStatusAndError();
 
         const approveBalance = new BigNumber($("#approvedBalance").val()) * (10 ** App.tokenContract.decimals);
@@ -213,6 +216,29 @@ App = {
         const batchTransferWalletContractInstance = web3.eth.contract(batchTransferWalletAbi).at(App.batchTransferWalletContract.address);
         const amounts = createTransferAmounts(App.csvFile.amounts);
         const asyncBatchTransfer = promisify(cb => batchTransferWalletContractInstance.batchTransferToken(App.tokenContract.instance.address, App.csvFile.addresses, amounts, cb));
+
+        try {
+            const txHash = await asyncBatchTransfer;
+            createTransactionStatus(txHash);
+        } catch(error) {
+            createErrorElement(error);
+        }
+    },
+
+    transferEther : async () => {
+        clearStatusAndError();
+
+        const totalAmount = new BigNumber($("#totalAmount").val()) * (10 ** 18);
+        const holdingBalance = $("#holdingBalance").val();
+
+        if (totalAmount > holdingBalance) {
+            createErrorElement("totalAmount is larger than holdingBalance.");
+            return;
+        }
+
+        const batchTransferWalletContractInstance = web3.eth.contract(batchTransferWalletAbi).at(App.batchTransferWalletContract.address);
+        const amounts = createTransferAmountsForEther(App.csvFile.amounts);
+        const asyncBatchTransfer = promisify(cb => batchTransferWalletContractInstance.batchTransferEther(App.csvFile.addresses, amounts, {value:totalAmount}, cb));
 
         try {
             const txHash = await asyncBatchTransfer;
@@ -331,6 +357,14 @@ const createTransferAmounts = (amounts) => {
     return returnAmounts;
 }
 
+const createTransferAmountsForEther = (amounts) => {
+    let returnAmounts = [];
+    for (let i = 0; i < amounts.length; i++) {
+        returnAmounts[i] = web3.toWei(amounts[i], "ether");
+    }
+    return returnAmounts;
+}
+
 const invalidDecimals = (tokenAmount) => {
     const length = (tokenAmount + '.').match(/\.\d*/)[0].length - 1;
     return length > App.tokenContract.decimals;
@@ -377,6 +411,15 @@ const refleshBalanceAndAllowance = async () => {
     // To be used for checking before transfer
     $("#holdingBalance").val(balanceOfUser.div(10 ** App.tokenContract.decimals));
     $("#holdingBalance").append(addReadOnlyField("Your balance", `${balanceOfUser.div(10 ** App.tokenContract.decimals)} ${App.tokenContract.symbol}`));
+}
+
+const refleshEtherBalance = async () => {
+    const asyncBalanceOf = promisify(cb => web3.eth.getBalance(App.userAccount, cb));
+    const balanceOfUser = await asyncBalanceOf;
+    $("#holdingBalance").empty();
+    // To be used for checking before transfer
+    $("#holdingBalance").val(balanceOfUser);
+    $("#holdingBalance").append(addReadOnlyField("Your balance", `${web3.fromWei(balanceOfUser, "ether")} ETH`));
 }
 
 const addReadOnlyField = (labelString, placeholderString) => {
